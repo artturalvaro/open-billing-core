@@ -1,27 +1,47 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
+	"log"
+	"net/http"
 
-	"open-billing-core/internal/application/usecase"
-	infra "open-billing-core/internal/infrastructure/subscription"
+	app "open-billing-core/internal/application/subscription"
+	"open-billing-core/internal/infrastructure/repository/memory"
 )
 
-func main() {
-	repo := infra.NewMemoryRepository()
+func setupServer() http.Handler {
+	repo := memory.NewSubscriptionRepository()
+	useCase := app.NewCreateSubscription(repo)
 
-	createSub := usecase.CreateSubscription{
-		Repo: repo,
-	}
+	mux := http.NewServeMux()
 
-	sub, _ := createSub.Execute(usecase.CreateSubscriptionInput{
-		CustomerID: "cust_1",
-		PlanID:     "plan_basic",
+	mux.HandleFunc("/subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		var input app.CreateSubscriptionInput
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		sub, err := useCase.Execute(input)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(sub)
 	})
 
-	fmt.Println("Subscription created:", sub.ID, sub.Status)
+	return mux
+}
 
-	_ = sub.Activate()
-
-	fmt.Println("Subscription status after activation:", sub.Status)
+func main() {
+	log.Println("HTTP server running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", setupServer()))
 }
