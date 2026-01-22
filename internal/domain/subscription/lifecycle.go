@@ -1,6 +1,9 @@
 package subscription
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var ErrInvalidTransition = errors.New("invalid subscription state transition")
 
@@ -9,6 +12,7 @@ func (s *Subscription) Activate() error {
 		return ErrInvalidTransition
 	}
 	s.Status = Active
+	s.StartedAt = time.Now()
 	return nil
 }
 

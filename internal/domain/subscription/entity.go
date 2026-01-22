@@ -18,3 +18,11 @@ type Subscription struct {
 	Status     Status
 	StartedAt  time.Time
 }
+
+func NewSubscription(customerID, planID string) *Subscription {
+	return &Subscription{
+		CustomerID: customerID,
+		PlanID:     planID,
+		Status:     Trialing,
+	}
+}
